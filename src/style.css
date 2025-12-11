@@ -1,0 +1,74 @@
+body {
+  margin: 0;
+  background: #f6f7fb;
+  font-family: Inter, sans-serif;
+}
+
+.container {
+  padding: 24px;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #222;
+}
+
+.grid {
+  display: flex;
+  gap: 24px;
+}
+
+.col {
+  flex: 1;
+}
+
+.card {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  margin-bottom: 24px;
+}
+
+input[type="file"],
+select,
+textarea,
+button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+textarea {
+  resize: vertical;
+  padding: 8px;
+  min-height: 120px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #2b2f4a;
+  color: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+.hint {
+  color: #777;
+  font-size: 14px;
+}
+
+.output .result {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.divider {
+  margin: 14px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
