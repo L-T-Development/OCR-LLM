@@ -1,26 +1,36 @@
 pipeline {
     agent any
 
+    environment {
+        // Sets up a virtual environment so we don't mess up the server
+        VENV_HOME = "${env.WORKSPACE}/venv"
+        PATH = "${VENV_HOME}/bin:${env.PATH}"
+    }
+
     stages {
         stage('📥 Checkout Code') {
             steps {
-                // Gets code from your GitHub
-                git branch: 'main', url: 'https://github.com/L-T-Development/OCR-LLM.git'
+                echo '🤖 Fetching code from INTERN branch...'
+                // 👇 CRITICAL FIX: Changed from 'main' to 'intern'
+                git branch: 'intern', url: 'https://github.com/L-T-Development/OCR-LLM.git'
             }
         }
 
-        stage('📦 Install Python Libs') {
+        stage('🛠️ Setup Python Env') {
             steps {
-                // Windows users: use 'bat'. Mac/Linux users: use 'sh'
-                bat 'pip install -r requirements.txt' 
+                echo '🐍 Setting up Python Environment...'
+                // Windows users use 'bat', Mac/Linux use 'sh'
+                bat 'python -m venv venv'
+                bat 'call venv\\Scripts\\activate' 
+                bat 'pip install -r requirements.txt'
             }
         }
 
         stage('🧪 Run Tests') {
             steps {
-                echo 'Running OCR Tests...'
-                // This runs the test file we created
-                bat 'pytest tests/test_ocr.py'
+                echo '🔬 Running OCR Tests...'
+                // Runs the tests inside the virtual environment
+                bat 'venv\\Scripts\\pytest tests/test_ocr.py'
             }
         }
     }
