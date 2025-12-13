@@ -1,30 +1,36 @@
 pipeline {
     agent any
 
+    environment {
+        PYTHON = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
+    }
+
     stages {
 
-        stage('🐍 Setup Python Environment') {
+        stage('Check Python') {
             steps {
-                echo 'Setting up Python environment...'
-                bat 'python -m venv venv'
-                bat 'venv\\Scripts\\pip install -r requirements.txt'
+                bat "\"%PYTHON%\" --version"
             }
         }
 
-        stage('🧪 Run Tests') {
+        stage('Setup Python Environment') {
             steps {
-                echo 'Running OCR tests...'
-                bat 'venv\\Scripts\\pytest tests/test_ocr.py'
+                bat "\"%PYTHON%\" -m venv venv"
+                bat "\"%PYTHON%\" -m pip install --upgrade pip"
+                bat "\"%PYTHON%\" -m pip install -r requirements.txt"
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                bat "\"%PYTHON%\" -m pytest tests/test_ocr.py"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Pipeline completed successfully'
+            echo '✅ OCR-LLM Pipeline SUCCESS'
         }
         failure {
-            echo '❌ Pipeline failed'
-        }
-    }
-}
+            echo '❌ OCR-LLM Pipeline FAILED'
