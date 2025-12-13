@@ -34,3 +34,6 @@ pipeline {
         }
         failure {
             echo '❌ OCR-LLM Pipeline FAILED'
+        }
+    }
+}
