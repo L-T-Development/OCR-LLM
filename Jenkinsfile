@@ -12,7 +12,7 @@ pipeline {
             steps {
                 echo '🤖 Fetching code from INTERN branch...'
                 // 👇 CRITICAL FIX: Changed from 'main' to 'intern'
-                git branch: 'intern', url: 'https://github.com/L-T-Development/OCR-LLM.git'
+                git branch: 'interns', url: 'https://github.com/L-T-Development/OCR-LLM.git'
             }
         }
 
