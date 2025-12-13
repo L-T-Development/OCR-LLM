@@ -7,7 +7,6 @@ pipeline {
 
     options {
         timestamps()
-        ansiColor('xterm')
     }
 
     stages {
@@ -42,9 +41,9 @@ pipeline {
             }
         }
 
-        stage('📦 Build Check') {
+        stage('📦 Build Validation') {
             steps {
-                echo 'Build validation completed successfully'
+                echo 'Build & test completed successfully'
             }
         }
     }
