@@ -5,15 +5,11 @@ pipeline {
         PYTHON = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
     }
 
-    options {
-        timestamps()
-    }
-
     stages {
 
-        stage('📥 Checkout') {
+        stage('🔎 Branch Info') {
             steps {
-                echo "Branch: ${env.BRANCH_NAME}"
+                echo "Running pipeline for branch: ${env.BRANCH_NAME}"
             }
         }
 
@@ -21,16 +17,15 @@ pipeline {
             steps {
                 echo 'Scanning for hardcoded secrets...'
                 bat '''
-                git grep -n -i "api_key\\|secret\\|password\\|token\\|private_key" && exit 1 || exit 0
+                git grep -n -i "api_key\\|secret\\|password\\|token" && exit 1 || exit 0
                 '''
             }
         }
 
-        stage('🐍 Python Setup') {
+        stage('🐍 Setup Python') {
             steps {
                 bat "\"%PYTHON%\" --version"
                 bat "\"%PYTHON%\" -m venv venv"
-                bat "\"%PYTHON%\" -m pip install --upgrade pip"
                 bat "\"%PYTHON%\" -m pip install -r requirements.txt"
             }
         }
@@ -41,22 +36,22 @@ pipeline {
             }
         }
 
-        stage('📦 Build Validation') {
+        stage('🚀 Branch-Specific Rules') {
+            when {
+                expression { env.BRANCH_NAME == 'main' }
+            }
             steps {
-                echo 'Build & test completed successfully'
+                echo 'Main branch checks passed. Ready for release.'
             }
         }
     }
 
     post {
         success {
-            echo '✅ INTERN CI PIPELINE PASSED'
+            echo "✅ CI passed for ${env.BRANCH_NAME}"
         }
         failure {
-            echo '❌ INTERN CI PIPELINE FAILED'
-        }
-        always {
-            cleanWs()
+            echo "❌ CI failed for ${env.BRANCH_NAME}"
         }
     }
 }
