@@ -40,21 +40,34 @@ pipeline {
             }
         }
 
-        stage('🔐 Security Scan (No .env check)') {
+        stage('🔐 Security Scan – Hardcoded Secrets') {
             steps {
                 dir('OCR-LLM') {
                     bat '''
                     @echo off
-                    setlocal
+                    setlocal EnableDelayedExpansion
 
-                    REM ---- Hardcoded secrets scan (non-blocking) ----
-                    findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.txt *.yml *.yaml > nul
-                    if %errorlevel%==0 (
-                        echo ❌ SECURITY ISSUE: Hardcoded secrets detected
+                    echo 🔍 Scanning for hardcoded secrets...
+
+                    REM ---- Search patterns ----
+                    set PATTERNS=password= password: passwd api_key token secret aws_secret_access_key
+
+                    set FOUND=0
+
+                    for %%p in (%PATTERNS%) do (
+                        echo 🔎 Checking for %%p
+                        findstr /S /N /I "%%p" *.py *.txt *.yml *.yaml *.json 2>nul
+                        if !errorlevel! == 0 (
+                            set FOUND=1
+                        )
+                    )
+
+                    if !FOUND! == 1 (
+                        echo ❌ SECURITY ISSUE: Hardcoded secret(s) found above
                         exit /b 1
                     )
 
-                    echo ✅ Security scan passed
+                    echo ✅ Security scan passed (no hardcoded secrets found)
                     exit /b 0
                     '''
                 }
