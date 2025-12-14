@@ -7,32 +7,26 @@ pipeline {
 
     stages {
 
-        /* =======================
-           CHECKOUT
-           ======================= */
         stage('📥 Checkout Code') {
             steps {
                 checkout scm
             }
         }
 
-        /* =======================
-           SECURITY: FORBIDDEN FILES
-           ======================= */
-        stage('🚫 Forbidden Files Check') {
+        stage('🚫 Forbidden Files Check (.env / keys)') {
             steps {
-                echo 'Checking for forbidden sensitive files (.env, keys)...'
+                echo 'Checking for forbidden sensitive files...'
                 bat '''
                 if exist .env (
                     echo ERROR: .env file detected!
                     exit 1
                 )
                 if exist *.pem (
-                    echo ERROR: .pem key file detected!
+                    echo ERROR: Private key file detected!
                     exit 1
                 )
                 if exist *.key (
-                    echo ERROR: .key file detected!
+                    echo ERROR: Key file detected!
                     exit 1
                 )
                 echo No forbidden files found.
@@ -40,9 +34,6 @@ pipeline {
             }
         }
 
-        /* =======================
-           SECURITY: HARDCODED SECRETS
-           ======================= */
         stage('🔐 Hardcoded Secrets Scan') {
             steps {
                 echo 'Scanning for hardcoded secrets...'
@@ -59,28 +50,20 @@ pipeline {
             }
         }
 
-        /* =======================
-           PYTHON CHECK
-           ======================= */
         stage('🐍 Check Python') {
             steps {
                 bat "\"%PYTHON%\" --version"
             }
         }
 
-        /* =======================
-           DEPENDENCIES
-           ======================= */
         stage('📦 Setup Python Environment') {
             steps {
+                bat "\"%PYTHON%\" -m venv venv"
                 bat "\"%PYTHON%\" -m pip install --upgrade pip"
                 bat "\"%PYTHON%\" -m pip install -r requirements.txt"
             }
         }
 
-        /* =======================
-           TESTS
-           ======================= */
         stage('🧪 Run Tests') {
             steps {
                 bat "\"%PYTHON%\" -m pytest tests/test_ocr.py"
@@ -90,12 +73,12 @@ pipeline {
 
     post {
         success {
-            echo '✅ OCR-LLM CI PIPELINE SUCCESS'
-            echo '🔒 Basic security checks passed'
+            echo '✅ OCR-LLM Pipeline SUCCESS'
+            echo '🔒 Security checks passed'
         }
         failure {
-            echo '❌ OCR-LLM CI PIPELINE FAILED'
-            echo '🚨 Security or test failure detected'
+            echo '❌ OCR-LLM Pipeline FAILED'
+            echo '🚨 Possible security or test issue detected'
         }
         always {
             cleanWs()
