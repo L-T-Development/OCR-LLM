@@ -27,35 +27,60 @@ pipeline {
             steps {
                 bat '''
                 @echo off
-                echo 🔕 Handling Git LFS safely...
-
                 git lfs uninstall > nul 2>&1 || echo Git LFS not installed
                 git config --global filter.lfs.required false || echo Git config skipped
-
-                echo 📥 Cloning repository...
                 git clone --branch %BRANCH% %REPO_URL%
-
                 exit /b 0
                 '''
             }
         }
 
-        stage('🔐 Security Scan (No .env check)') {
+        stage('🔐 Security Scan – Hardcoded Secrets') {
             steps {
                 dir('OCR-LLM') {
-                    bat '''
-                    @echo off
-                    setlocal
+                    powershell '''
+                    Write-Host "🔍 Scanning for hardcoded secrets..."
 
-                    REM ---- Hardcoded secrets scan (non-blocking) ----
-                    findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.txt *.yml *.yaml > nul
-                    if %errorlevel%==0 (
-                        echo ❌ SECURITY ISSUE: Hardcoded secrets detected
-                        exit /b 1
+                    $patterns = @(
+                        'password\\s*[=:]\\s*["\\''][^"\\'']+["\\'']',
+                        'api[_-]?key\\s*[=:]\\s*["\\''][^"\\'']+["\\'']',
+                        'secret\\s*[=:]\\s*["\\''][^"\\'']+["\\'']',
+                        'token\\s*[=:]\\s*["\\''][^"\\'']+["\\'']'
                     )
 
-                    echo ✅ Security scan passed
-                    exit /b 0
+                    $exclude = @(
+                        'vocab.json',
+                        'tokenizer',
+                        'models',
+                        'node_modules',
+                        'package-lock.json'
+                    )
+
+                    $found = $false
+
+                    foreach ($pattern in $patterns) {
+                        $results = Get-ChildItem -Recurse -File |
+                                   Where-Object {
+                                       $exclude -notcontains $_.Name
+                                   } |
+                                   Select-String -Pattern $pattern -CaseSensitive:$false
+
+                        if ($results) {
+                            Write-Host "❌ Match found for pattern: $pattern"
+                            $results | ForEach-Object {
+                                Write-Host "$($_.Path):$($_.LineNumber): $($_.Line)"
+                            }
+                            $found = $true
+                        }
+                    }
+
+                    if ($found) {
+                        Write-Error "❌ Hardcoded secrets detected"
+                        exit 1
+                    }
+
+                    Write-Host "✅ Security scan passed (no hardcoded secrets)"
+                    exit 0
                     '''
                 }
             }
