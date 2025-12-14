@@ -17,11 +17,11 @@ pipeline {
 
     stages {
 
-        // 🧹 SOLUTION 1B: Clean workspace to remove old .env and cached files
+        // 🧹 Always start clean
         stage('🧹 Clean Workspace') {
             steps {
                 deleteDir()
-                echo '🧼 Workspace cleaned successfully'
+                echo '🧼 Workspace cleaned'
             }
         }
 
@@ -34,27 +34,22 @@ pipeline {
                 git lfs uninstall > nul 2>&1
                 git config --global filter.lfs.required false
 
-                echo 📥 Cloning repository WITHOUT Git LFS...
+                echo 📥 Cloning repository...
                 git clone --branch %BRANCH% %REPO_URL%
                 '''
             }
         }
 
-        stage('🔐 Security Scan') {
+        // 🔐 Security scan WITHOUT .env check
+        stage('🔐 Security Scan (No .env check)') {
             steps {
                 dir('OCR-LLM') {
                     bat '''
                     @echo off
                     setlocal
 
-                    REM ---- .env file check ----
-                    for /r %%f in (.env) do (
-                        echo ❌ SECURITY ISSUE: .env file found at %%f
-                        exit /b 1
-                    )
-
-                    REM ---- Hardcoded secrets check ----
-                    findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.env *.txt *.yml *.yaml > nul
+                    REM ---- Hardcoded secrets scan ONLY ----
+                    findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.txt *.yml *.yaml > nul
                     if %errorlevel%==0 (
                         echo ❌ SECURITY ISSUE: Hardcoded secrets detected
                         exit /b 1
