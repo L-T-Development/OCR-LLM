@@ -85,7 +85,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('🐍 Check Python') {
             steps {
                 bat "\"%PYTHON%\" --version"
