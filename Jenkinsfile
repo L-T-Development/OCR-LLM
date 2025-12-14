@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        // 🔕 Skip Git LFS completely
+        // Skip Git LFS safely
         GIT_LFS_SKIP_SMUDGE = "1"
 
         PYTHON   = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
@@ -17,7 +17,6 @@ pipeline {
 
     stages {
 
-        // 🧹 Always start clean
         stage('🧹 Clean Workspace') {
             steps {
                 deleteDir()
@@ -29,9 +28,9 @@ pipeline {
             steps {
                 bat '''
                 @echo off
-                echo 🔕 Disabling Git LFS...
+                echo 🔕 Handling Git LFS safely...
 
-                git lfs uninstall > nul 2>&1
+                git lfs uninstall > nul 2>&1 || echo Git LFS not installed, skipping
                 git config --global filter.lfs.required false
 
                 echo 📥 Cloning repository...
@@ -40,7 +39,6 @@ pipeline {
             }
         }
 
-        // 🔐 Security scan WITHOUT .env check
         stage('🔐 Security Scan (No .env check)') {
             steps {
                 dir('OCR-LLM') {
@@ -48,7 +46,7 @@ pipeline {
                     @echo off
                     setlocal
 
-                    REM ---- Hardcoded secrets scan ONLY ----
+                    REM ---- Basic hardcoded secret scan ----
                     findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.txt *.yml *.yaml > nul
                     if %errorlevel%==0 (
                         echo ❌ SECURITY ISSUE: Hardcoded secrets detected
