@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        // 🔹 Skip Git LFS completely (this is what you meant by "skip LTS")
+        // 🔕 Skip Git LFS completely
         GIT_LFS_SKIP_SMUDGE = "1"
 
         PYTHON   = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
@@ -17,6 +17,14 @@ pipeline {
 
     stages {
 
+        // 🧹 SOLUTION 1B: Clean workspace to remove old .env and cached files
+        stage('🧹 Clean Workspace') {
+            steps {
+                deleteDir()
+                echo '🧼 Workspace cleaned successfully'
+            }
+        }
+
         stage('📥 Checkout Source Code (Git LFS Skipped)') {
             steps {
                 bat '''
@@ -25,8 +33,6 @@ pipeline {
 
                 git lfs uninstall > nul 2>&1
                 git config --global filter.lfs.required false
-
-                if exist OCR-LLM rmdir /s /q OCR-LLM
 
                 echo 📥 Cloning repository WITHOUT Git LFS...
                 git clone --branch %BRANCH% %REPO_URL%
@@ -97,4 +103,3 @@ pipeline {
         }
     }
 }
-
