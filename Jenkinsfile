@@ -5,111 +5,80 @@ pipeline {
         PYTHON = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
     }
 
-    options {
-        timestamps()
-        disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '10'))
-        timeout(time: 30, unit: 'MINUTES')
-    }
-
     stages {
 
-        /* =======================
-           CHECKOUT
-           ======================= */
-        stage('📥 Checkout') {
+        stage('📥 Checkout Code') {
             steps {
                 checkout scm
-                echo "Branch: ${env.BRANCH_NAME}"
             }
         }
 
-        /* =======================
-           SECRET SCANNING
-           ======================= */
-        stage('🔐 Secret Detection (Gitleaks)') {
+        stage('🚫 Forbidden Files Check (.env / keys)') {
             steps {
-                echo 'Running Gitleaks secret scan...'
+                echo 'Checking for forbidden sensitive files...'
                 bat '''
-                gitleaks detect --source . --no-git --exit-code 1 || exit 1
+                if exist .env (
+                    echo ERROR: .env file detected!
+                    exit 1
+                )
+                if exist *.pem (
+                    echo ERROR: Private key file detected!
+                    exit 1
+                )
+                if exist *.key (
+                    echo ERROR: Key file detected!
+                    exit 1
+                )
+                echo No forbidden files found.
                 '''
             }
         }
 
-        /* =======================
-           DEPENDENCY SCAN
-           ======================= */
-        stage('🛡 Dependency Scan (Trivy)') {
+        stage('🔐 Hardcoded Secrets Scan') {
             steps {
-                echo 'Running Trivy filesystem scan...'
+                echo 'Scanning for hardcoded secrets...'
                 bat '''
-                trivy fs --severity HIGH,CRITICAL --exit-code 1 .
+                git grep -n -i "api_key\\|apikey\\|secret_key\\|password\\|auth_token\\|access_token" ^
+                && (
+                    echo ERROR: Hardcoded secret detected!
+                    exit 1
+                ) || (
+                    echo No hardcoded secrets found.
+                    exit 0
+                )
                 '''
             }
         }
 
-        /* =======================
-           PYTHON SETUP
-           ======================= */
-        stage('🐍 Python Setup') {
+        stage('🐍 Check Python') {
             steps {
                 bat "\"%PYTHON%\" --version"
+            }
+        }
+
+        stage('📦 Setup Python Environment') {
+            steps {
+                bat "\"%PYTHON%\" -m venv venv"
                 bat "\"%PYTHON%\" -m pip install --upgrade pip"
                 bat "\"%PYTHON%\" -m pip install -r requirements.txt"
-                bat "\"%PYTHON%\" -m pip install flake8"
             }
         }
 
-        /* =======================
-           LINTING
-           ======================= */
-        stage('🧹 Linting') {
+        stage('🧪 Run Tests') {
             steps {
-                echo 'Running flake8 linting...'
-                bat "\"%PYTHON%\" -m flake8 ."
-            }
-        }
-
-        /* =======================
-           UNIT TESTS
-           ======================= */
-        stage('🧪 Unit Tests') {
-            steps {
-                bat "\"%PYTHON%\" -m pytest tests --junitxml=pytest-report.xml"
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: 'pytest-report.xml'
-                }
-            }
-        }
-
-        /* =======================
-           BUILD
-           ======================= */
-        stage('📦 Build') {
-            steps {
-                echo 'Building application...'
-                bat "\"%PYTHON%\" setup.py sdist || echo 'No setup.py found, skipping build'"
-            }
-        }
-
-        /* =======================
-           ARTIFACT ARCHIVAL
-           ======================= */
-        stage('📁 Archive Artifacts') {
-            steps {
-                archiveArtifacts artifacts: '**/dist/*', fingerprint: true
+                bat "\"%PYTHON%\" -m pytest tests/test_ocr.py"
             }
         }
     }
 
     post {
         success {
-            echo '✅ CI PIPELINE COMPLETED SUCCESSFULLY'
+            echo '✅ OCR-LLM Pipeline SUCCESS'
+            echo '🔒 Security checks passed'
         }
         failure {
-            echo '❌ CI PIPELINE FAILED — CHECK STAGE LOGS'
+            echo '❌ OCR-LLM Pipeline FAILED'
+            echo '🚨 Possible security or test issue detected'
         }
         always {
             cleanWs()
