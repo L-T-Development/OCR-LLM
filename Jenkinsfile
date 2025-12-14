@@ -6,25 +6,30 @@ pipeline {
     }
 
     environment {
-        PYTHON = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
+        // 🔹 Skip Git LFS completely (this is what you meant by "skip LTS")
+        GIT_LFS_SKIP_SMUDGE = "1"
+
+        PYTHON   = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
         VENV_DIR = "venv"
         REPO_URL = "https://github.com/L-T-Development/OCR-LLM.git"
-        BRANCH = "interns"
+        BRANCH   = "interns"
     }
 
     stages {
 
-        stage('Checkout Source Code (LFS Disabled)') {
+        stage('📥 Checkout Source Code (Git LFS Skipped)') {
             steps {
-                echo '📥 Cloning repository with Git LFS disabled...'
                 bat '''
                 @echo off
-                set GIT_LFS_SKIP_SMUDGE=1
+                echo 🔕 Disabling Git LFS...
+
+                git lfs uninstall > nul 2>&1
+                git config --global filter.lfs.required false
 
                 if exist OCR-LLM rmdir /s /q OCR-LLM
 
+                echo 📥 Cloning repository WITHOUT Git LFS...
                 git clone --branch %BRANCH% %REPO_URL%
-                cd OCR-LLM
                 '''
             }
         }
@@ -36,16 +41,16 @@ pipeline {
                     @echo off
                     setlocal
 
-                    REM ---- .env check ----
+                    REM ---- .env file check ----
                     for /r %%f in (.env) do (
-                        echo ❌ SECURITY VIOLATION: .env file found at %%f
+                        echo ❌ SECURITY ISSUE: .env file found at %%f
                         exit /b 1
                     )
 
-                    REM ---- hardcoded secret scan ----
+                    REM ---- Hardcoded secrets check ----
                     findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.env *.txt *.yml *.yaml > nul
                     if %errorlevel%==0 (
-                        echo ❌ SECURITY VIOLATION: Hardcoded secrets detected
+                        echo ❌ SECURITY ISSUE: Hardcoded secrets detected
                         exit /b 1
                     )
 
@@ -55,13 +60,13 @@ pipeline {
             }
         }
 
-        stage('Check Python') {
+        stage('🐍 Check Python') {
             steps {
                 bat "\"%PYTHON%\" --version"
             }
         }
 
-        stage('Setup Python Environment') {
+        stage('⚙ Setup Python Environment') {
             steps {
                 dir('OCR-LLM') {
                     bat "\"%PYTHON%\" -m venv %VENV_DIR%"
@@ -71,7 +76,7 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
+        stage('🧪 Run Tests') {
             steps {
                 dir('OCR-LLM') {
                     bat "\"%VENV_DIR%\\Scripts\\python.exe\" -m pytest tests/test_ocr.py"
