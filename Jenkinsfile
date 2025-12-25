@@ -1,63 +1,34 @@
 pipeline {
     agent any
 
-    options {
-        skipDefaultCheckout(true)
-    }
-
     environment {
-        GIT_LFS_SKIP_SMUDGE = "1"
-
         PYTHON   = "C:\\Users\\rites\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"
         VENV_DIR = "venv"
-        REPO_URL = "https://github.com/L-T-Development/OCR-LLM.git"
-        BRANCH   = "interns"
     }
 
     stages {
 
-        stage('🧹 Clean Workspace') {
+        stage('📥 Checkout Source Code') {
             steps {
-                deleteDir()
-                echo '🧼 Workspace cleaned'
+                // Jenkins-managed checkout (enables change detection)
+                checkout scm
             }
         }
 
-        stage('📥 Checkout Source Code (Git LFS Skipped)') {
+        stage('🔐 Security Scan (Hardcoded Secrets Check)') {
             steps {
                 bat '''
                 @echo off
-                echo 🔕 Handling Git LFS safely...
+                echo 🔍 Running security scan...
 
-                git lfs uninstall > nul 2>&1 || echo Git LFS not installed
-                git config --global filter.lfs.required false || echo Git config skipped
+                findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.txt *.yml *.yaml
+                if %errorlevel%==0 (
+                    echo ❌ SECURITY ISSUE: Hardcoded secrets detected
+                    exit /b 1
+                )
 
-                echo 📥 Cloning repository...
-                git clone --branch %BRANCH% %REPO_URL%
-
-                exit /b 0
+                echo ✅ Security scan passed
                 '''
-            }
-        }
-
-        stage('🔐 Security Scan (No .env check)') {
-            steps {
-                dir('OCR-LLM') {
-                    bat '''
-                    @echo off
-                    setlocal
-
-                    REM ---- Hardcoded secrets scan (non-blocking) ----
-                    findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.txt *.yml *.yaml > nul
-                    if %errorlevel%==0 (
-                        echo ❌ SECURITY ISSUE: Hardcoded secrets detected
-                        exit /b 1
-                    )
-
-                    echo ✅ Security scan passed
-                    exit /b 0
-                    '''
-                }
             }
         }
 
@@ -69,21 +40,20 @@ pipeline {
 
         stage('⚙ Setup Python Environment') {
             steps {
-                dir('OCR-LLM') {
-                    bat '''
+                bat '''
+                if not exist %VENV_DIR% (
                     "%PYTHON%" -m venv %VENV_DIR%
-                    "%VENV_DIR%\\Scripts\\python.exe" -m pip install --upgrade pip
-                    "%VENV_DIR%\\Scripts\\python.exe" -m pip install -r requirements.txt
-                    '''
-                }
+                )
+
+                "%VENV_DIR%\\Scripts\\python.exe" -m pip install --upgrade pip
+                "%VENV_DIR%\\Scripts\\python.exe" -m pip install -r requirements.txt
+                '''
             }
         }
 
         stage('🧪 Run Tests') {
             steps {
-                dir('OCR-LLM') {
-                    bat "\"%VENV_DIR%\\Scripts\\python.exe\" -m pytest tests/test_ocr.py"
-                }
+                bat "\"%VENV_DIR%\\Scripts\\python.exe\" -m pytest tests/test_ocr.py"
             }
         }
     }
