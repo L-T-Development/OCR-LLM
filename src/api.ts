@@ -37,11 +37,11 @@ function getBase(): string {
 
 function getHeaders() {
   const e = getElectronCfg();
-  if (e && e.token) return { "x-app-token": e.token };
+  if (e && e.token) return { Authorization: `Bearer ${e.token}` };
   const env = getEnvCfg();
-  if (env && env.token) return { "x-app-token": env.token };
+  if (env && env.token) return { Authorization: `Bearer ${env.token}` };
 
-  return {};
+  return { Authorization: `Bearer ${TOKEN}` }; // fallback to TOKEN defined at top
 }
 
 // Generic request helpers
@@ -82,7 +82,10 @@ export async function translateFile(file: File, target = "en") {
 }
 
 export async function getGlossary() {
-  return await post("/glossary", {}); // or use GET via axios.get if preferred
+  const res = await axios.get(`${getBase()}/glossary`, {
+    headers: getHeaders(),
+  });
+  return res.data;
 }
 
 export async function addGlossaryEntry(word: string, meaning: string) {
@@ -93,9 +96,7 @@ export async function addGlossaryEntry(word: string, meaning: string) {
       tgt: meaning,
       scope: "global",
     },
-    {
-      headers: { "x-app-token": TOKEN },
-    }
+    { headers: getHeaders() }
   );
 
   // IMPORTANT: backend must return the inserted row id
@@ -104,18 +105,30 @@ export async function addGlossaryEntry(word: string, meaning: string) {
 
 export async function deleteGlossaryEntry(id: number) {
   const res = await axios.delete(`${BASE}/glossary/${id}`, {
-    headers: {
-      "x-app-token": TOKEN,
-    },
+    headers: getHeaders(),
   });
 
   return res.data;
 }
 export async function fetchGlossary() {
   const res = await axios.get(`${BASE}/glossary`, {
+    headers: getHeaders(),
+  });
+
+  return res.data;
+}
+
+export async function extractGlossaryPairs(sourceFile: File, targetFile: File) {
+  const fd = new FormData();
+  fd.append("source", sourceFile); // MUST match backend
+  fd.append("target", targetFile);
+
+  const res = await axios.post(`${getBase()}/glossary/extract`, fd, {
     headers: {
-      "x-app-token": TOKEN,
+      ...getHeaders(),
+      "Content-Type": "multipart/form-data",
     },
+    timeout: 120000,
   });
 
   return res.data;

@@ -19,6 +19,8 @@ from services.file_parser import FileParser
 from services.glossary import GlossaryManager
 from services.cache import CacheManager
 import hashlib
+from services.glossary_extractor import GlossaryExtractor
+from services.normalizer import RussianNormalizer 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("translator-backend")
@@ -44,10 +46,11 @@ CORS(app, resources={r"/*": {"origins": "*"}})  # dev only; tighten for prod/Ele
 
 # Initialize core services
 translator = Translator(models_dir=models_dir, use_onnx=args.use_onnx)
+normalizer = RussianNormalizer()
+extractor = GlossaryExtractor(translator,normalizer)
 file_parser = FileParser()
 glossary = GlossaryManager(db_path=db_path)
 cache = CacheManager(use_redis=(not args.no_redis))
-
 AUTH_TOKEN = args.auth_token
 
 
@@ -55,11 +58,15 @@ def require_auth(func):
     from functools import wraps
     @wraps(func)
     def wrapper(*a, **kw):
-        token = request.headers.get("x-app-token", "")
-        if not token or token != AUTH_TOKEN:
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer "):
+            return jsonify({"error": "unauthorized"}), 401
+        token = auth[len("Bearer "):]
+        if token != AUTH_TOKEN:
             return jsonify({"error": "unauthorized"}), 401
         return func(*a, **kw)
     return wrapper
+
 
 
 @app.route("/health", methods=["GET"])
@@ -194,6 +201,90 @@ def add_glossary():
         "src": src,
         "tgt": tgt,
         "scope": scope
+    })
+
+
+
+
+@app.route("/glossary/extract", methods=["POST"])
+@require_auth
+def glossary_extract():
+
+    if "source" not in request.files or "target" not in request.files:
+        return jsonify({"error": "Both source and target files required"}), 400
+
+    src_file = request.files["source"]
+    tgt_file = request.files["target"]
+
+    temp_dir = Path("./tmp")
+    temp_dir.mkdir(exist_ok=True)
+
+    src_path = temp_dir / src_file.filename
+    tgt_path = temp_dir / tgt_file.filename
+
+    src_file.save(src_path)
+    tgt_file.save(tgt_path)
+
+    try:
+        src_text = file_parser.parse_text_only(src_path)
+        tgt_text = file_parser.parse_text_only(tgt_path)
+
+        # ✅ relaxed check (important)
+        if not src_text.strip() or not tgt_text.strip():
+            return jsonify({
+                "error": "No readable text extracted"
+            }), 400
+
+        pairs = extractor.extract_pairs(src_text, tgt_text)
+
+        # ✅ safer noise filtering
+        pairs = [
+            p for p in pairs
+            if not p["src"].isupper()
+            and len(p["src"]) < 25
+        ]
+
+        return jsonify({"pairs": pairs})
+
+    finally:
+        src_path.unlink(missing_ok=True)
+        tgt_path.unlink(missing_ok=True)
+
+
+
+
+@app.route("/glossary/bulk-add", methods=["POST"])
+@require_auth
+def glossary_bulk_add():
+    """
+    Accepts:
+      { "pairs": [ {"src":"...", "tgt":"..."}, ... ] }
+
+    Inserts each pair into glossary DB.
+    """
+    payload = request.get_json(force=True, silent=True) or {}
+    items = payload.get("pairs", [])
+
+    if not items:
+        return jsonify({"error": "pairs array required"}), 400
+
+    inserted_ids = []
+
+    for item in items:
+        src = item.get("src")
+        tgt = item.get("tgt")
+
+        if not src or not tgt:
+            continue
+
+        entry_id = glossary.add(src, tgt, scope="global")
+        inserted_ids.append(entry_id)
+
+    glossary.reload_into_cache(cache)
+
+    return jsonify({
+        "inserted": len(inserted_ids),
+        "ids": inserted_ids
     })
 
 
