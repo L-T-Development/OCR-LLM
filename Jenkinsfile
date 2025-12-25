@@ -23,12 +23,10 @@ pipeline {
             steps {
                 sh '''
                 echo "🔍 Checking for committed .env file..."
-
                 if [ -f ".env" ]; then
-                    echo "❌ SECURITY ISSUE: .env file found in repository"
+                    echo "❌ SECURITY ISSUE: .env file found"
                     exit 1
                 fi
-
                 echo "✅ No .env file found"
                 '''
             }
@@ -37,17 +35,11 @@ pipeline {
         stage('🔐 Security Scan (Hardcoded Secrets Only)') {
             steps {
                 sh '''
-                echo "🔍 Running security scan (hardcoded secrets only)..."
-
+                echo "🔍 Running security scan..."
                 grep -R --exclude-dir=venv \
                     -E "(password|api_key|token|aws_secret_access_key) *= *['\\\"][^'\\\"]+['\\\"]" . \
                 | grep -viE "process.env|import.meta.env|Bearer|demo|test|dummy|placeholder|example|sample" \
-                && {
-                    echo "❌ SECURITY ISSUE: Hardcoded secret detected"
-                    exit 1
-                } || {
-                    echo "✅ Security scan passed"
-                }
+                && exit 1 || echo "✅ Security scan passed"
                 '''
             }
         }
@@ -76,7 +68,7 @@ pipeline {
         stage('🧪 Run Tests') {
             steps {
                 sh '''
-                . $VENV_DIR/bin/activate
+                . venv/bin/activate
                 pytest tests/test_ocr.py
                 '''
             }
