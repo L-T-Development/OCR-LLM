@@ -13,12 +13,14 @@ pipeline {
 
     stages {
 
+        /* ================= CHECKOUT ================= */
         stage('📥 Checkout Source Code') {
             steps {
                 checkout scm
             }
         }
 
+        /* ================= .env PROTECTION ================= */
         stage('🚫 .env File Check') {
             steps {
                 sh '''
@@ -32,6 +34,7 @@ pipeline {
             }
         }
 
+        /* ================= SECRET SCAN ================= */
         stage('🔐 Security Scan (Hardcoded Secrets Only)') {
             steps {
                 sh '''
@@ -39,32 +42,44 @@ pipeline {
                 grep -R --exclude-dir=venv \
                     -E "(password|api_key|token|aws_secret_access_key) *= *['\\\"][^'\\\"]+['\\\"]" . \
                 | grep -viE "process.env|import.meta.env|Bearer|demo|test|dummy|placeholder|example|sample" \
-                && exit 1 || echo "✅ Security scan passed"
+                && {
+                    echo "❌ SECURITY ISSUE: Hardcoded secret detected"
+                    exit 1
+                } || {
+                    echo "✅ Security scan passed"
+                }
                 '''
             }
         }
 
+        /* ================= PYTHON CHECK ================= */
         stage('🐍 Check Python') {
             steps {
                 sh 'python3 --version'
             }
         }
 
+        /* ================= PYTHON ENV ================= */
         stage('⚙ Setup Python Environment') {
             steps {
                 sh '''
-                if [ ! -d "$VENV_DIR" ]; then
-                    echo "📦 Creating virtual environment..."
-                    python3 -m venv $VENV_DIR
+                echo "📦 Setting up Python virtual environment..."
+
+                if [ ! -d "venv" ]; then
+                    echo "➡ Creating virtual environment"
+                    python3 -m venv venv
+                else
+                    echo "➡ Virtual environment already exists"
                 fi
 
-                . $VENV_DIR/bin/activate
+                . venv/bin/activate
                 pip install --upgrade pip
                 pip install -r requirements.txt
                 '''
             }
         }
 
+        /* ================= TESTS ================= */
         stage('🧪 Run Tests') {
             steps {
                 sh '''
@@ -75,6 +90,7 @@ pipeline {
         }
     }
 
+    /* ================= POST ACTIONS ================= */
     post {
         success {
             echo '✅ OCR-LLM Pipeline SUCCESS'
