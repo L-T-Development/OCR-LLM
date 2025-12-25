@@ -13,14 +13,12 @@ pipeline {
 
     stages {
 
-        /* ================= CHECKOUT ================= */
         stage('📥 Checkout Source Code') {
             steps {
                 checkout scm
             }
         }
 
-        /* ================= .env PROTECTION ================= */
         stage('🚫 .env File Check') {
             steps {
                 sh '''
@@ -34,7 +32,6 @@ pipeline {
             }
         }
 
-        /* ================= SECRET SCAN ================= */
         stage('🔐 Security Scan (Hardcoded Secrets Only)') {
             steps {
                 sh '''
@@ -52,26 +49,30 @@ pipeline {
             }
         }
 
-        /* ================= PYTHON CHECK ================= */
         stage('🐍 Check Python') {
             steps {
                 sh 'python3 --version'
             }
         }
 
-        /* ================= PYTHON ENV ================= */
         stage('⚙ Setup Python Environment') {
             steps {
                 sh '''
-                echo "📦 Setting up Python virtual environment..."
+                echo "📦 Preparing Python virtual environment..."
 
+                # If venv exists but is broken, delete it
+                if [ -d "venv" ] && [ ! -f "venv/bin/activate" ]; then
+                    echo "⚠ Broken virtualenv detected — recreating"
+                    rm -rf venv
+                fi
+
+                # Create venv if missing
                 if [ ! -d "venv" ]; then
                     echo "➡ Creating virtual environment"
                     python3 -m venv venv
-                else
-                    echo "➡ Virtual environment already exists"
                 fi
 
+                # Activate and install deps
                 . venv/bin/activate
                 pip install --upgrade pip
                 pip install -r requirements.txt
@@ -79,7 +80,6 @@ pipeline {
             }
         }
 
-        /* ================= TESTS ================= */
         stage('🧪 Run Tests') {
             steps {
                 sh '''
@@ -90,7 +90,6 @@ pipeline {
         }
     }
 
-    /* ================= POST ACTIONS ================= */
     post {
         success {
             echo '✅ OCR-LLM Pipeline SUCCESS'
