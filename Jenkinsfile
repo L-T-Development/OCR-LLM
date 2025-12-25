@@ -13,14 +13,14 @@ pipeline {
 
     stages {
 
-        /* -------------------- CHECKOUT -------------------- */
+        /* ==================== CHECKOUT ==================== */
         stage('📥 Checkout Source Code') {
             steps {
                 checkout scm
             }
         }
 
-        /* -------------------- SECURITY: .env CHECK -------------------- */
+        /* ==================== .env PROTECTION ==================== */
         stage('🚫 .env File Check') {
             steps {
                 sh '''
@@ -36,7 +36,7 @@ pipeline {
             }
         }
 
-        /* -------------------- SECURITY: HARDCODED SECRETS -------------------- */
+        /* ==================== SECRET SCAN ==================== */
         stage('🔐 Security Scan (Hardcoded Secrets Only)') {
             steps {
                 sh '''
@@ -55,14 +55,14 @@ pipeline {
             }
         }
 
-        /* -------------------- PYTHON CHECK -------------------- */
+        /* ==================== PYTHON CHECK ==================== */
         stage('🐍 Check Python') {
             steps {
                 sh 'python3 --version'
             }
         }
 
-        /* -------------------- SETUP PYTHON ENV -------------------- */
+        /* ==================== PYTHON ENV ==================== */
         stage('⚙ Setup Python Environment') {
             steps {
                 sh '''
@@ -71,34 +71,28 @@ pipeline {
                     python3 -m venv $VENV_DIR
                 fi
 
-                source $VENV_DIR/bin/activate
+                . $VENV_DIR/bin/activate
                 pip install --upgrade pip
                 pip install -r requirements.txt
                 '''
             }
         }
 
-        /* -------------------- RUN TESTS -------------------- */
+        /* ==================== TESTS ==================== */
         stage('🧪 Run Tests') {
             steps {
                 sh '''
-                source $VENV_DIR/bin/activate
+                . $VENV_DIR/bin/activate
                 pytest tests/test_ocr.py
                 '''
             }
         }
     }
 
-    /* -------------------- POST ACTIONS -------------------- */
+    /* ==================== POST ACTIONS ==================== */
     post {
         success {
             echo '✅ OCR-LLM Pipeline SUCCESS'
         }
         failure {
-            echo '❌ OCR-LLM Pipeline FAILED'
-        }
-        always {
-            echo '📦 Pipeline execution completed'
-        }
-    }
-}
+            echo '❌ OCR-LLM
