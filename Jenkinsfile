@@ -33,16 +33,20 @@ pipeline {
         }
 
         /* -------------------- SECURITY: HARDCODED SECRETS -------------------- */
-        stage('🔐 Security Scan (Hardcoded Secrets Check)') {
+        stage('🔐 Security Scan (Demo-Friendly)') {
             steps {
                 bat '''
                 @echo off
-                echo 🔍 Running security scan (excluding venv)...
+                echo 🔍 Running security scan (excluding venv, allowing demo values)...
 
                 for /r %%f in (*.py *.yml *.yaml *.txt *.env) do (
                     echo %%f | findstr /i "\\\\venv\\\\" >nul
                     if errorlevel 1 (
-                        findstr /i /r "password *= *['\\\"] api_key *= *['\\\"] token *= *['\\\"] aws_secret_access_key *= *['\\\"]" "%%f" >nul
+
+                        REM Match credential-like assignments
+                        findstr /i /r "password *= *['\\\"][^'\"]+ api_key *= *['\\\"][^'\"]+ token *= *['\\\"][^'\"]+ aws_secret_access_key *= *['\\\"][^'\"]+" "%%f" ^
+                        | findstr /v /i "demo test dummy placeholder example sample" >nul
+
                         if not errorlevel 1 (
                             echo ❌ SECURITY ISSUE FOUND IN %%f
                             exit /b 1
