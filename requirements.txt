@@ -1,0 +1,6 @@
+pytesseract
+pytest
+requests
+Pillow
+pandas
+python-dateutil
