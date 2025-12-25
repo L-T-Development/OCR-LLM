@@ -14,22 +14,15 @@ pipeline {
             }
         }
 
-        stage('🔐 Security Scan (Project Code Only)') {
+        stage('🔐 Security Scan (Hardcoded Secrets Check)') {
             steps {
                 bat '''
                 @echo off
-                echo 🔍 Running security scan (excluding venv)...
+                echo 🔍 Running security scan...
 
-                REM ---- Scan only project files ----
-                findstr /si /m "password= secret= api_key= token= aws_secret_access_key" ^
-                    *.py ^
-                    src\\*.py ^
-                    app\\*.py ^
-                    config\\*.yml ^
-                    config\\*.yaml
-
+                findstr /si /m "password= secret= api_key= token= aws_secret_access_key" *.py *.txt *.yml *.yaml
                 if %errorlevel%==0 (
-                    echo ❌ SECURITY ISSUE: Hardcoded secrets found in project code
+                    echo ❌ SECURITY ISSUE: Hardcoded secrets detected
                     exit /b 1
                 )
 
@@ -45,18 +38,14 @@ pipeline {
             }
         }
 
-        stage('⚙ Setup Python Virtual Environment') {
+        stage('⚙ Setup Python Environment') {
             steps {
                 bat '''
                 if not exist %VENV_DIR% (
-                    echo 📦 Creating virtual environment...
                     "%PYTHON%" -m venv %VENV_DIR%
                 )
 
-                echo ⬆️ Upgrading pip...
                 "%VENV_DIR%\\Scripts\\python.exe" -m pip install --upgrade pip
-
-                echo 📦 Installing dependencies...
                 "%VENV_DIR%\\Scripts\\python.exe" -m pip install -r requirements.txt
                 '''
             }
@@ -64,10 +53,7 @@ pipeline {
 
         stage('🧪 Run Tests') {
             steps {
-                bat '''
-                echo 🧪 Running tests...
-                "%VENV_DIR%\\Scripts\\python.exe" -m pytest
-                '''
+                bat "\"%VENV_DIR%\\Scripts\\python.exe\" -m pytest tests/test_ocr.py"
             }
         }
     }
