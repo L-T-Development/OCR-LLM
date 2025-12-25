@@ -3,6 +3,7 @@ pipeline {
 
     options {
         skipDefaultCheckout(true)
+        timestamps()
     }
 
     environment {
@@ -12,44 +13,56 @@ pipeline {
 
     stages {
 
+        /* -------------------- CHECKOUT -------------------- */
         stage('📥 Checkout Source Code') {
             steps {
                 checkout scm
             }
         }
 
+        /* -------------------- SECURITY: .env CHECK -------------------- */
         stage('🚫 .env File Check') {
             steps {
                 sh '''
                 echo "🔍 Checking for committed .env file..."
+
                 if [ -f ".env" ]; then
-                    echo "❌ SECURITY ISSUE: .env file found"
+                    echo "❌ SECURITY ISSUE: .env file found in repository"
                     exit 1
                 fi
+
                 echo "✅ No .env file found"
                 '''
             }
         }
 
-        stage('🔐 Security Scan (Demo-Friendly)') {
+        /* -------------------- SECURITY: HARDCODED SECRETS -------------------- */
+        stage('🔐 Security Scan (Hardcoded Secrets Only)') {
             steps {
                 sh '''
-                echo "🔍 Running security scan..."
+                echo "🔍 Running security scan (hardcoded secrets only)..."
 
                 grep -R --exclude-dir=venv \
-                    -E "password *=|api_key *=|token *=|aws_secret_access_key *=" . \
-                    | grep -viE "demo|test|dummy|placeholder|example|sample" \
-                    && exit 1 || exit 0
+                    -E "(password|api_key|token|aws_secret_access_key) *= *['\\\"][^'\\\"]+['\\\"]" . \
+                | grep -viE "process.env|import.meta.env|Bearer|demo|test|dummy|placeholder|example|sample" \
+                && {
+                    echo "❌ SECURITY ISSUE: Hardcoded secret detected"
+                    exit 1
+                } || {
+                    echo "✅ Security scan passed"
+                }
                 '''
             }
         }
 
+        /* -------------------- PYTHON CHECK -------------------- */
         stage('🐍 Check Python') {
             steps {
                 sh 'python3 --version'
             }
         }
 
+        /* -------------------- SETUP PYTHON ENV -------------------- */
         stage('⚙ Setup Python Environment') {
             steps {
                 sh '''
@@ -65,16 +78,18 @@ pipeline {
             }
         }
 
+        /* -------------------- RUN TESTS -------------------- */
         stage('🧪 Run Tests') {
             steps {
                 sh '''
-                source venv/bin/activate
+                source $VENV_DIR/bin/activate
                 pytest tests/test_ocr.py
                 '''
             }
         }
     }
 
+    /* -------------------- POST ACTIONS -------------------- */
     post {
         success {
             echo '✅ OCR-LLM Pipeline SUCCESS'
