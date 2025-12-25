@@ -13,14 +13,12 @@ pipeline {
 
     stages {
 
-        /* ==================== CHECKOUT ==================== */
         stage('📥 Checkout Source Code') {
             steps {
                 checkout scm
             }
         }
 
-        /* ==================== .env PROTECTION ==================== */
         stage('🚫 .env File Check') {
             steps {
                 sh '''
@@ -36,7 +34,6 @@ pipeline {
             }
         }
 
-        /* ==================== SECRET SCAN ==================== */
         stage('🔐 Security Scan (Hardcoded Secrets Only)') {
             steps {
                 sh '''
@@ -55,14 +52,12 @@ pipeline {
             }
         }
 
-        /* ==================== PYTHON CHECK ==================== */
         stage('🐍 Check Python') {
             steps {
                 sh 'python3 --version'
             }
         }
 
-        /* ==================== PYTHON ENV ==================== */
         stage('⚙ Setup Python Environment') {
             steps {
                 sh '''
@@ -78,7 +73,6 @@ pipeline {
             }
         }
 
-        /* ==================== TESTS ==================== */
         stage('🧪 Run Tests') {
             steps {
                 sh '''
@@ -89,10 +83,15 @@ pipeline {
         }
     }
 
-    /* ==================== POST ACTIONS ==================== */
     post {
         success {
             echo '✅ OCR-LLM Pipeline SUCCESS'
         }
         failure {
-            echo '❌ OCR-LLM
+            echo '❌ OCR-LLM Pipeline FAILED'
+        }
+        always {
+            echo '📦 Pipeline execution completed'
+        }
+    }
+}
