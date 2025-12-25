@@ -10,6 +10,7 @@ pipeline {
 
         stage('📥 Checkout Source Code') {
             steps {
+                // Jenkins-managed checkout (enables change detection)
                 checkout scm
             }
         }
@@ -27,7 +28,6 @@ pipeline {
                 )
 
                 echo ✅ Security scan passed
-                exit /b 0
                 '''
             }
         }
